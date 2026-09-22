@@ -29,9 +29,12 @@ extension TetrominoType {
 
 struct TetrisGameView: View {
 
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var engine = TetrisEngine()
+    @StateObject private var sound = TetrisSoundPlayer()
     @State private var started = false
     @State private var paused = false
+    @AppStorage("soundEnabled") private var soundEnabled = true
 
     private let ticker = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -73,6 +76,26 @@ struct TetrisGameView: View {
             guard started, !paused, !engine.gameOver else { return }
             engine.advance(elapsed: 0.05)
         }
+        .onAppear {
+            sound.enabled = soundEnabled
+            engine.onEvent = { event in
+                sound.play(event)
+            }
+        }
+        .onChange(of: engine.gameOver) { isOver in
+            if isOver {
+                sound.stopMusic()
+            }
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                if started, !paused, !engine.gameOver {
+                    sound.resumeMusic()
+                }
+            } else {
+                sound.pauseMusic()
+            }
+        }
         .preferredColorScheme(.dark)
     }
 
@@ -93,11 +116,34 @@ struct TetrisGameView: View {
     // MARK: 顶部信息栏
 
     private var topBar: some View {
-        HStack(spacing: 10) {
-            holdBox
-            scoreBoard
-            nextBox
+        VStack(spacing: 4) {
+            HStack(spacing: 10) {
+                holdBox
+                scoreBoard
+                nextBox
+            }
+            HStack {
+                Spacer()
+                soundToggle
+            }
         }
+    }
+
+    private var soundToggle: some View {
+        Button {
+            toggleSound()
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                Text(soundEnabled ? "声音开" : "声音关")
+            }
+            .font(.caption2)
+            .foregroundColor(.white.opacity(0.7))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color.white.opacity(0.08)))
+        }
+        .buttonStyle(.plain)
     }
 
     private var holdBox: some View {
@@ -321,12 +367,30 @@ struct TetrisGameView: View {
     private func togglePause() {
         guard started, !engine.gameOver else { return }
         paused.toggle()
+        if paused {
+            sound.pauseMusic()
+        } else {
+            sound.resumeMusic()
+        }
     }
 
     private func restart() {
         engine.reset()
         paused = false
         started = true
+        sound.startMusic()
+    }
+
+    private func toggleSound() {
+        soundEnabled.toggle()
+        sound.enabled = soundEnabled
+        if soundEnabled {
+            if started, !paused, !engine.gameOver {
+                sound.startMusic()
+            }
+        } else {
+            sound.stopMusic()
+        }
     }
 
     // MARK: 覆盖层
@@ -350,6 +414,18 @@ struct TetrisGameView: View {
                         .padding(.vertical, 12)
                         .background(Capsule().fill(Color.blue))
                         .foregroundColor(.white)
+                }
+                .buttonStyle(.plain)
+                Button {
+                    toggleSound()
+                } label: {
+                    Label(
+                        soundEnabled ? "声音：开" : "声音：关",
+                        systemImage: soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill"
+                    )
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.8))
+                    .padding(.vertical, 6)
                 }
                 .buttonStyle(.plain)
             }

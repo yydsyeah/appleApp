@@ -83,6 +83,21 @@ struct TetrisPiece {
     ]
 }
 
+// MARK: - 游戏事件
+
+/// 供界面层（音效/动画）订阅的游戏事件。
+enum TetrisEvent {
+    case move
+    case rotate
+    case softDrop
+    case hardDrop
+    case hold
+    case lock
+    case clear(Int)
+    case levelUp(Int)
+    case gameOver
+}
+
 // MARK: - 游戏引擎
 
 final class TetrisEngine: ObservableObject {
@@ -106,6 +121,9 @@ final class TetrisEngine: ObservableObject {
     @Published private(set) var gameOver = false
 
     private(set) var canHold = true
+
+    /// 事件回调（在游戏状态变化时同步触发，主线程调用）。
+    var onEvent: ((TetrisEvent) -> Void)?
 
     private var bag: [TetrominoType] = []
     private var dropAccumulator: TimeInterval = 0
@@ -140,12 +158,16 @@ final class TetrisEngine: ObservableObject {
 
     @discardableResult
     func moveLeft() -> Bool {
-        move(dx: -1, dy: 0)
+        let moved = move(dx: -1, dy: 0)
+        if moved { emit(.move) }
+        return moved
     }
 
     @discardableResult
     func moveRight() -> Bool {
-        move(dx: 1, dy: 0)
+        let moved = move(dx: 1, dy: 0)
+        if moved { emit(.move) }
+        return moved
     }
 
     func rotateClockwise() {
@@ -161,6 +183,7 @@ final class TetrisEngine: ObservableObject {
         guard !gameOver else { return }
         if move(dx: 0, dy: 1) {
             score += 1
+            emit(.softDrop)
             objectWillChange.send()
         } else {
             lockCurrent()
@@ -178,6 +201,7 @@ final class TetrisEngine: ObservableObject {
             score += distance * 2
             objectWillChange.send()
         }
+        emit(.hardDrop)
         lockCurrent()
     }
 
@@ -190,11 +214,13 @@ final class TetrisEngine: ObservableObject {
             current = TetrisPiece(type: held, rotation: 0, x: 3, y: 0)
             if collides(current) {
                 gameOver = true
+                emit(.gameOver)
             }
         } else {
             hold = current.type
             spawn()
         }
+        emit(.hold)
         objectWillChange.send()
     }
 
@@ -250,6 +276,7 @@ final class TetrisEngine: ObservableObject {
             candidate.x += dx
             if !collides(candidate) {
                 current = candidate
+                emit(.rotate)
                 objectWillChange.send()
                 return true
             }
@@ -259,6 +286,7 @@ final class TetrisEngine: ObservableObject {
         lifted.y -= 1
         if !collides(lifted) {
             current = lifted
+            emit(.rotate)
             objectWillChange.send()
             return true
         }
@@ -278,6 +306,7 @@ final class TetrisEngine: ObservableObject {
                   cell.y >= 0, cell.y < Self.totalHeight else { continue }
             grid[cell.y][cell.x] = current.type
         }
+        emit(.lock)
         clearCompletedLines()
         spawn()
         objectWillChange.send()
@@ -299,7 +328,12 @@ final class TetrisEngine: ObservableObject {
         let baseScores = [0, 40, 100, 300, 1200]
         score += baseScores[min(cleared, 4)] * level
         lines += cleared
+        let previousLevel = level
         level = lines / 10 + 1
+        emit(.clear(cleared))
+        if level > previousLevel {
+            emit(.levelUp(level))
+        }
     }
 
     private func spawn() {
@@ -309,6 +343,7 @@ final class TetrisEngine: ObservableObject {
         dropAccumulator = 0
         if collides(current) {
             gameOver = true
+            emit(.gameOver)
         }
     }
 
@@ -327,5 +362,9 @@ final class TetrisEngine: ObservableObject {
             bag = TetrominoType.allCases.shuffled()
         }
         return bag.removeLast()
+    }
+
+    private func emit(_ event: TetrisEvent) {
+        onEvent?(event)
     }
 }
