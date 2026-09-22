@@ -1,12 +1,20 @@
-# AppleApp — 免签名 IPA 构建
+# AppleApp — 俄罗斯方块（免签名 IPA 构建）
 
-一个原生 SwiftUI 最小工程，用于产出**未签名**的 IPA，全程不需要 Apple Developer 账号或证书。
+一个原生 SwiftUI 俄罗斯方块小游戏 Demo，用于产出**未签名**的 IPA，全程不需要 Apple Developer 账号或证书。
+
+## 玩法
+
+- 点击棋盘：旋转方块；左右滑动：移动；下滑：软降；上滑：落底
+- 底部按钮提供：暂存、旋转、软降、落底、左移、右移、暂停、重开
+- 支持 7-bag 随机器、幽灵投影、消行计分与逐级加速
 
 > 注意：未签名 IPA 无法直接安装到普通 iPhone。它适用于越狱设备、二次重签（AltStore / Sideloadly / 爱思助手等），或后续接入正式签名流程。
 
 ## 目录结构
 
-- `AppleApp/` — SwiftUI 源码
+- `AppleApp/TetrisEngine.swift` — 纯逻辑游戏引擎（不依赖 SwiftUI）
+- `AppleApp/TetrisGameView.swift` — 游戏界面与交互
+- `AppleApp/` — 其余 SwiftUI 源码
 - `project.yml` — XcodeGen 配置，用于生成 `.xcodeproj`（不要手改生成的工程）
 - `scripts/build_ipa.sh` — Mac 本地一键构建脚本
 - `.github/workflows/build-ipa.yml` — GitHub Actions 云端构建
