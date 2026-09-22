@@ -1,0 +1,32 @@
+name: AppleApp
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+targets:
+  AppleApp:
+    type: application
+    platform: iOS
+    sources:
+      - AppleApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.appleapp
+        PRODUCT_NAME: AppleApp
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: AppleApp
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "1.0.0"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+    scheme:
+      testTargets: []

@@ -1,0 +1,48 @@
+name: Build Unsigned IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build unsigned app
+        run: |
+          xcodebuild -project AppleApp.xcodeproj -scheme AppleApp -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Package IPA
+        run: |
+          APP="build/DerivedData/Build/Products/Release-iphoneos/AppleApp.app"
+          test -d "$APP"
+          rm -rf dist/Payload
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          (cd dist && zip -ryq ../AppleApp-unsigned.ipa Payload)
+          ls -lh AppleApp-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppleApp-unsigned-ipa
+          path: AppleApp-unsigned.ipa
+          retention-days: 30

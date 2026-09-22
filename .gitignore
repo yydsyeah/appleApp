@@ -1,0 +1,12 @@
+.DS_Store
+
+# XcodeGen 生成的工程（以 project.yml 为准）
+AppleApp.xcodeproj/
+xcuserdata/
+*.xcuserstate
+
+# 构建产物
+build/
+dist/
+DerivedData/
+*.ipa
