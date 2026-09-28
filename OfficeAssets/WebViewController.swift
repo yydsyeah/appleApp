@@ -81,6 +81,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate,
     }
 
     // MARK: - 文件上传（Excel 导入）
+    // 注意：这个回调在 iOS 上从 18.4 才开始提供（苹果文档确认）。
+    // 低于 18.4 的系统（例如本机要装的 iOS 17）由 WebKit 自己弹出文件选择器，
+    // 所以这里加 @available 即可，不影响旧系统选文件。
+    @available(iOS 18.4, *)
     func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
         panelCompletion = completionHandler
