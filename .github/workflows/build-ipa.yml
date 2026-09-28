@@ -1,48 +1,76 @@
-name: Build Unsigned IPA
+name: Build IPA (unsigned)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: macos-15
     steps:
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: Install XcodeGen
+      - name: 检查工程文件是否齐全
+        id: check
+        run: |
+          if [ ! -f project.yml ] || [ ! -d OfficeAssets ]; then
+            echo "工程文件还没上传完整，跳过构建"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 安装 xcodegen
+        if: steps.check.outputs.skip != 'true'
         run: brew install xcodegen
 
-      - name: Generate Xcode project
+      - name: 生成 Xcode 工程
+        if: steps.check.outputs.skip != 'true'
         run: xcodegen generate
 
-      - name: Build unsigned app
+      - name: 编译 App（不签名）
+        if: steps.check.outputs.skip != 'true'
         run: |
-          xcodebuild -project AppleApp.xcodeproj -scheme AppleApp -configuration Release \
-            -sdk iphoneos -destination 'generic/platform=iOS' \
+          set -euo pipefail
+          xcodebuild -project OfficeAssets.xcodeproj \
+            -scheme OfficeAssets \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
             build
 
-      - name: Package IPA
+      - name: 打包成 IPA
+        if: steps.check.outputs.skip != 'true'
         run: |
-          APP="build/DerivedData/Build/Products/Release-iphoneos/AppleApp.app"
+          set -euo pipefail
+          APP="build/DerivedData/Build/Products/Release-iphoneos/OfficeAssets.app"
           test -d "$APP"
-          rm -rf dist/Payload
+          rm -rf dist
           mkdir -p dist/Payload
           cp -R "$APP" dist/Payload/
-          (cd dist && zip -ryq ../AppleApp-unsigned.ipa Payload)
-          ls -lh AppleApp-unsigned.ipa
+          rm -f OfficeAssets-unsigned.ipa
+          (cd dist && zip -ryq ../OfficeAssets-unsigned.ipa Payload)
+          unzip -l OfficeAssets-unsigned.ipa | head -25
+          ls -lh OfficeAssets-unsigned.ipa
 
-      - name: Upload IPA artifact
+      - name: 上传构建产物
+        if: steps.check.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AppleApp-unsigned-ipa
-          path: AppleApp-unsigned.ipa
-          retention-days: 30
+          name: OfficeAssets-IPA
+          path: OfficeAssets-unsigned.ipa
+          if-no-files-found: error
+
+      - name: 发布到 Release（下载不需要登录）
+        if: steps.check.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete office-ipa --yes --cleanup-tag || true
+          gh release create office-ipa OfficeAssets-unsigned.ipa \
+            --title "办公用品管理 iOS 未签名 IPA" \
+            --notes "自动构建产物。下载 zip 后解压即得 OfficeAssets-unsigned.ipa。"
